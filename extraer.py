@@ -4,25 +4,6 @@ import yaml
 from netmiko import ConnectHandler
 
 # ==========================================
-# 1. EXTRACCIÓN AUTOMÁTICA OLT ZTE (SSH/TELNET)
-# ==========================================
-
-
-
-
-
-# ==========================================
-# 1. EXTRACCIÓN AUTOMÁTICA OLT ZTE (RAW MODE)
-# ==========================================
-
-# ==========================================
-# 1. EXTRACCIÓN AUTOMÁTICA OLT ZTE (RAW MODE)
-# ==========================================
-
-
-
-
-# ==========================================
 # 1. EXTRACCIÓN AUTOMÁTICA OLT ZTE (RAW MODE)
 # ==========================================
 def obtener_datos_olt():
@@ -91,13 +72,6 @@ def obtener_datos_olt():
         datos_olt['error'] = f"Error en extracción manual de OLT: {str(e)}"
 
     return datos_olt
-
-
-
-
-
-
-
 
 # ==========================================
 # 2. EXTRACCIÓN AUTOMÁTICA MIKROTIK (SSH)

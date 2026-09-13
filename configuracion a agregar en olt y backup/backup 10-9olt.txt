@@ -1,0 +1,972 @@
+    *************************************************************************
+                     Welcome to ZXAN product of ZTE Corporation
+    *************************************************************************
+
+Username:cidi
+Password:
+ZXAN#sh run
+Building configuration...
+olleh
+timestamp_write: 16:07:14 05/07/2026
+config-version 2.0
+!
+system-forwarding-mode normal-mode
+!
+!
+!
+set-pnp enable
+add-rack rackno 1 racktype IEC19
+add-shelf rackno 1 shelfno 1 shelftype IEC_SHELF
+add-card rackno 1 shelfno 1 slotno 0 PRWH
+add-card rackno 1 shelfno 1 slotno 1 PRWH
+add-card rackno 1 shelfno 1 slotno 13 GTGH
+add-card rackno 1 shelfno 1 slotno 14 GTGH
+add-card rackno 1 shelfno 1 slotno 15 GTGH
+add-card rackno 1 shelfno 1 slotno 16 GTGO
+add-card rackno 1 shelfno 1 slotno 17 GTGO
+add-card rackno 1 shelfno 1 slotno 19 HUVQ
+add-card rackno 1 shelfno 1 slotno 20 HUVQ
+!
+ip tcp finwait-time 600
+ip tcp queuemax 5
+ip tcp synwait-time 30
+ip tcp window-size 2144
+!
+urpf log off
+!
+iptv cdr report-interval 240
+iptv cdr max-records 65535
+gpon
+  onu profile vlan HSI-200 tag-mode tag cvlan 200
+!
+!
+fan temp-zone low-threshold -20 high-threshold 90 red-threshold 160 rackno 1 she
+lfno 1
+fan speed-percent-set 23 38 48 58 rackno 1 shelfno 1
+fan control fixed-speed rackno 1 shelfno 1
+fan speed 1 fanid 1 rackno 1 shelfno 1
+fan speed 1 fanid 2 rackno 1 shelfno 1
+fan speed 1 fanid 3 rackno 1 shelfno 1
+fan speed 1 fanid 4 rackno 1 shelfno 1
+fan speed 1 fanid 5 rackno 1 shelfno 1
+fan speed 1 fanid 6 rackno 1 shelfno 1
+fan speed 1 fanid 7 rackno 1 shelfno 1
+fan speed 1 fanid 8 rackno 1 shelfno 1
+fan speed 1 fanid 9 rackno 1 shelfno 1
+fan speed 1 fanid 10 rackno 1 shelfno 1
+fan env-card-device power
+!
+!
+!
+!
+mac aging-time 300
+mac monitor-period 10
+mac usage-threshold 70
+!
+eth-switch max-frame-length  1600
+!
+auto-update backup disable
+auto-update activate disable
+!
+!
+!
+gpon
+  profile tcont INTERNET type 4 maximum 1024000
+  profile tcont plan-300m type 4 maximum 307200
+  profile tcont UP-300M-MAN type 4 maximum 307200
+  profile traffic DOWN-300M sir 307200 pir 307200
+  profile traffic DOWN-300M-MAN sir 307200 pir 307200
+!
+!
+epon
+!
+!
+pon
+  onu-type ZTEG-F670 gpon description 4GE_1POTS_WIFI
+  onu-type ZTEG-F670 gpon max-tcont 8
+  onu-type ZTEG-F670 gpon max-gemport 32
+  onu-type ZTEG-F670 gpon max-switch-perslot 8
+  onu-type ZTEG-F670 gpon max-flow-perswitch 32
+  onu-type ZTEG-F670L gpon description 4GE_1POTS_WIFI
+  onu-type ZTEG-F670L gpon max-tcont 8
+  onu-type ZTEG-F670L gpon max-gemport 32
+  onu-type ZTEG-F670L gpon max-switch-perslot 8
+  onu-type ZTEG-F670L gpon max-flow-perswitch 32
+  onu-type generic-F601 gpon description 1GE
+  onu-type generic-F601 gpon max-tcont 8
+  onu-type generic-F601 gpon max-gemport 32
+  onu-type generic-F601 gpon max-switch-perslot 8
+  onu-type generic-F601 gpon max-flow-perswitch 8
+  onu-type generic-F670 gpon description 4GE,2POTS,WIFI
+  onu-type generic-F670 gpon max-tcont 8
+  onu-type generic-F670 gpon max-gemport 32
+  onu-type generic-F670 gpon max-switch-perslot 8
+  onu-type generic-F670 gpon max-flow-perswitch 8
+  onu-type-if ZTEG-F670 eth_0/1
+  onu-type-if ZTEG-F670 eth_0/2
+  onu-type-if ZTEG-F670 eth_0/3
+  onu-type-if ZTEG-F670 eth_0/4
+  onu-type-if ZTEG-F670 pots_0/1
+  onu-type-if ZTEG-F670 wifi_0/1
+  onu-type-if generic-F601 eth_0/1
+  onu-type-if generic-F601 eth_0/2
+  onu-type-if generic-F601 eth_0/3
+  onu-type-if generic-F601 eth_0/4
+  onu-type-if generic-F670 eth_0/1
+  onu-type-if generic-F670 eth_0/2
+  onu-type-if generic-F670 eth_0/3
+  onu-type-if generic-F670 eth_0/4
+  uncfg-onu-display-info model sn pw
+onu-profile gpon line
+remote
+!
+pon
+onu-profile gpon PLAN300M
+  fec upstream
+  tcont 10 name T-INET profile plan-300m
+  gemport 10 name G-INET tcont 10
+  gemport 10 traffic-limit downstream DOWN-300M
+remote
+!
+pon
+!
+!
+vlan-reserve 4091 out-voip
+vlan-reserve 4092 in-voip
+vlan-reserve 4094 gpon
+!
+vlan database
+  vlan 1,99,200,300,400
+  vlan 1000,4091-4092,4094
+!
+vlan 99
+  name gestion
+!
+vlan 300
+  name iptv
+  multicast-packet drop-unknown
+!
+!
+!
+his-performance sample enable
+his-performance alarm enable
+his-performance auto-upload disable
+!
+!
+clock
+!
+!
+
+!
+clock
+!
+!
+
+!
+ptp
+!
+!
+port-identification access-node-id-type inband-mac
+port-identification rackno 1 frameno 1
+!
+igmp  enable
+igmp  mvlan 300
+igmp  mvlan 300 work-mode snooping
+igmp  mvlan 300 version-mode v1 accept
+igmp  mvlan 300 version-mode v2 accept
+igmp  mvlan 300 version-mode v3 accept
+igmp  mvlan 300 group 239.1.1.1 to 239.1.1.255
+mld  disable
+  mib-compatibility iftable v1
+!
+ip-source-guard ip-spoofing-trap interval 3
+ip-source-guard disable
+security port-protect enable
+!
+!
+!
+vdsl2 vector-bandplan
+TransMode:2
+ClassMask:7
+!
+vdsl2 vector-tracking
+Mode:1
+!
+vdsl2 switch-to-tr165
+ModeFlag:9
+!
+!
+virtual-mac flexible-syntax-profile MT
+add Ctrl-Byte 0 width 6 index 6
+exit
+virtual-mac access-node-id 0
+!
+msag
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+sip capability modify uaid 1 PPRESERVICE 0
+
+!
+!
+!
+interface mng1
+  ip vrf forwarding vpn_mng
+  ip address 10.0.10.100 255.255.255.0
+  config-filename startrun.dat
+  negotiation auto
+  tag-mode untag
+!
+interface vlan 99
+  ip address 10.99.99.2 255.255.255.0
+!
+interface null1
+!
+interface gei_1/10/1
+  shutdown
+  hybrid-attribute fiber
+  no negotiation auto
+  speed 1000
+  duplex full
+  flowcontrol disable
+  linktrap enable
+  als disable
+  switchport mode trunk
+  switchport vlan 1,200 tag
+!
+interface gei_1/11/2
+  shutdown
+  hybrid-attribute fiber
+  no negotiation auto
+  speed 1000
+  duplex full
+  flowcontrol disable
+  linktrap enable
+  als disable
+  switchport mode trunk
+  switchport vlan 1 tag
+!
+interface gei_1/11/3
+  shutdown
+  hybrid-attribute fiber
+  no negotiation auto
+  speed 1000
+  duplex full
+  flowcontrol disable
+  linktrap enable
+  als disable
+  switchport mode trunk
+  switchport vlan 1 tag
+!
+interface gei_1/11/4
+  shutdown
+  hybrid-attribute fiber
+  no negotiation auto
+  speed 1000
+  duplex full
+  flowcontrol disable
+  linktrap disable
+  als disable
+  switchport mode trunk
+  switchport vlan 1 tag
+!
+interface gpon-olt_1/13/1
+  no shutdown
+  linktrap disable
+  onu 1 type generic-F601 sn RTEGCA01096C
+!
+interface gpon-onu_1/13/1:1
+  sn-bind enable sn
+  tcont 1 profile INTERNET
+  gemport 1 tcont 1
+  switchport mode hybrid vport 1
+  service-port 1 vport 1 user-vlan 200 vlan 200
+!
+interface gpon-olt_1/13/2
+  no shutdown
+  linktrap disable
+  onu 1 type ZTEG-F670 sn ZTEGC826D2E0
+  onu 2 type ZTEG-F670L sn ZTEGDADC11E7
+!
+interface gpon-onu_1/13/2:1
+  sn-bind enable sn
+  tcont 1 profile INTERNET
+  gemport 1 tcont 1
+  switchport mode hybrid vport 1
+  service-port 1 vport 1 user-vlan 200 vlan 200
+!
+interface gpon-onu_1/13/2:2
+  sn-bind enable sn
+!
+interface gpon-olt_1/13/3
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/13/4
+  no shutdown
+  linktrap disable
+  onu 1 type generic-F670 sn ZTEGDADC11E7
+  onu 2 type ZTEG-F670 sn ZTEGC826D2E0
+!
+interface gpon-onu_1/13/4:1
+  sn-bind enable sn
+!
+interface gpon-onu_1/13/4:2
+  sn-bind enable sn
+  tcont 1 name T-INET profile UP-300M-MAN
+  gemport 1 name G-INET tcont 1
+  gemport 1 traffic-limit downstream DOWN-300M-MAN
+  switchport mode hybrid vport 1
+  service-port 1 vport 1 user-vlan 200 vlan 200
+!
+interface gpon-olt_1/13/5
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/13/6
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/13/7
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/13/8
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/13/9
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/13/10
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/13/11
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/13/12
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/13/13
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/13/14
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/13/15
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/13/16
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/14/1
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/14/2
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/14/3
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/14/4
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/14/5
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/14/6
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/14/7
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/14/8
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/14/9
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/14/10
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/14/11
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/14/12
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/14/13
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/14/14
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/14/15
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/14/16
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/15/1
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/15/2
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/15/3
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/15/4
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/15/5
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/15/6
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/15/7
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/15/8
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/15/9
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/15/10
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/15/11
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/15/12
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/15/13
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/15/14
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/15/15
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/15/16
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/16/1
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/16/2
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/16/3
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/16/4
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/16/5
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/16/6
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/16/7
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/16/8
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/17/1
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/17/2
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/17/3
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/17/4
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/17/5
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/17/6
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/17/7
+  shutdown
+  linktrap disable
+!
+interface gpon-olt_1/17/8
+  shutdown
+  linktrap disable
+!
+interface xgei_1/19/1
+  phy-attribute lan
+  no shutdown
+  hybrid-attribute fiber
+  no negotiation auto
+  speed 10000
+  duplex full
+  flowcontrol disable
+  linktrap enable
+  als disable
+  switchport mode trunk
+  switchport vlan 1 tag
+  port-protect disable
+  uplink-isolate disable
+!
+interface xgei_1/19/2
+  phy-attribute lan
+  shutdown
+  hybrid-attribute fiber
+  no negotiation auto
+  speed 10000
+  duplex full
+  flowcontrol disable
+  linktrap enable
+  als disable
+  switchport mode trunk
+  switchport vlan 1 tag
+  port-protect disable
+  uplink-isolate disable
+!
+interface gei_1/19/3
+  no shutdown
+  hybrid-attribute fiber
+  negotiation auto
+  flowcontrol disable
+  linktrap enable
+  als disable
+  switchport mode trunk
+  switchport vlan 1,99,200,300,400 tag
+  switchport vlan 1000 tag
+  port-protect disable
+  uplink-isolate disable
+!
+interface gei_1/19/4
+  shutdown
+  hybrid-attribute fiber
+  negotiation auto
+  flowcontrol disable
+  linktrap enable
+  als disable
+  switchport mode trunk
+  switchport vlan 1 tag
+  port-protect disable
+  uplink-isolate disable
+!
+interface xgei_1/20/1
+  phy-attribute lan
+  shutdown
+  hybrid-attribute fiber
+  no negotiation auto
+  speed 10000
+  duplex full
+  flowcontrol disable
+  linktrap enable
+  als disable
+  switchport mode trunk
+  switchport vlan 1 tag
+  port-protect disable
+  uplink-isolate disable
+!
+interface xgei_1/20/2
+  phy-attribute lan
+  shutdown
+  hybrid-attribute fiber
+  no negotiation auto
+  speed 10000
+  duplex full
+  flowcontrol disable
+  linktrap enable
+  als disable
+  switchport mode trunk
+  switchport vlan 1 tag
+  port-protect disable
+  uplink-isolate disable
+!
+interface gei_1/20/3
+  shutdown
+  hybrid-attribute fiber
+  negotiation auto
+  flowcontrol disable
+  linktrap enable
+  als disable
+  switchport mode trunk
+  switchport vlan 1 tag
+  port-protect disable
+  uplink-isolate disable
+!
+interface gei_1/20/4
+  shutdown
+  hybrid-attribute fiber
+  negotiation auto
+  flowcontrol disable
+  linktrap enable
+  als disable
+  switchport mode trunk
+  switchport vlan 1 tag
+  port-protect disable
+  uplink-isolate disable
+!
+!
+set ethernet-oam enable
+!
+mpls ldp dynamic-capability
+!
+flow-label para-id 23
+!
+!
+!
+!
+!
+!
+!
+ip route 0.0.0.0 0.0.0.0 10.99.99.1
+!
+lldp disable
+!
+ipoa inatmarp-interval 10
+ipoa gateway-arp-interval 10
+!
+mpnat trans-table aging-time 60
+mpnat onu-telnet idle-time 3
+mpnat onu-ftp aging-time 5
+mpnat onu-snmp aging-time 30
+mpnat onu-ftp-data aging-time 5
+mpnat onu-mng-port auto-alloc disable
+!
+pon
+!
+!
+pon-onu-mng gpon-onu_1/13/1:1
+  service 1 gemport 1 vlan 200
+  vlan port eth_0/1 mode hybrid def-vlan 200
+!
+pon-onu-mng gpon-onu_1/13/2:1
+  service 1 gemport 1 vlan 200
+  vlan port veip_1 mode hybrid def-vlan 200
+!
+pon-onu-mng gpon-onu_1/13/2:2
+!
+pon-onu-mng gpon-onu_1/13/4:1
+!
+pon-onu-mng gpon-onu_1/13/4:2
+  service INTERNET gemport 1 vlan 200
+  wan-ip 1 mode dhcp vlan-profile HSI-200 host 1
+  vlan port eth_0/1 mode tag vlan 200
+  vlan port eth_0/2 mode tag vlan 200
+  vlan port eth_0/3 mode tag vlan 200
+  vlan port eth_0/4 mode tag vlan 200
+!
+!
+pon
+!
+!
+ces
+!
+!
+!
+ip-service arp-direct-to-gateway disable
+igmp  mvlan 300 source-port gei_1/19/3
+mac vpn ec1d.7f07.75c8
+!
+!
+!
+auto-write disable
+!
+inband-management enable
+!
+version V4.8.35
+!
+hostname ZXAN
+!
+enable secret level 15 5 RcMLuUKvnFZX9kNAV6A/UA==
+!
+service password-encryption
+!
+!
+username cidi password  7 juZF7ZU68yUOtkJ7B6z7EA== privilege 15
+username cidi password  7 juZF7ZU68yUOtkJ7B6z7EA== max-sessions 16
+username login-range name cidi login-begin 00:00:00  login-end 23:59:59
+username expire-date name cidi datetime 12-31-2099 23:59:59
+username password-changed name cidi is-changed false
+
+!
+!
+!
+user-authentication-type local
+user-authorization-type local
+!
+help message full
+!
+banner incoming @
+    *************************************************************************
+                     Welcome to ZXAN product of ZTE Corporation
+    *************************************************************************
+@
+!
+message-of-day @
+@
+!
+!
+service timestamps log datetime localtime
+service timestamps debug datetime localtime
+!
+!
+!
+!
+snmp-server location No.889 BiBo Rd.PuDong District, Shanghai, China
+snmp-server contact +86-21-68895000
+snmp-server packetsize 8192
+snmp-server engine-id mode mac
+snmp-server group GroupPriv0 v3 priv read AllView
+snmp-server group GroupPriv5 v3 priv read AllView write ViewPriv5
+snmp-server group GroupPriv10 v3 priv read AllView write ViewPriv10
+snmp-server group GroupPriv15 v3 priv read AllView write AllView
+snmp-server view AllView 1.2 included
+snmp-server view AllView 1.3 included
+snmp-server view ViewPriv5 1.2 included
+snmp-server view ViewPriv5 1.3 included
+snmp-server view ViewPriv5 1.3.6.1.4.1.3902.1082.10.1 excluded
+snmp-server view ViewPriv5 1.3.6.1.4.1.3902.1082.10.10 excluded
+snmp-server view ViewPriv5 1.3.6.1.4.1.3902.1082.20.1 excluded
+snmp-server view ViewPriv5 1.3.6.1.4.1.3902.1082.20.10 excluded
+snmp-server view ViewPriv10 1.2 included
+snmp-server view ViewPriv10 1.3 included
+snmp-server view ViewPriv10 1.3.6.1.4.1.3902.1082.20.10 excluded
+!
+!
+no ftp-server enable listen 21
+ftp-server top-directory  /flash/
+!
+logging alarmlog enable
+logging level notification
+logging snmplog disable
+logging igmplog enable
+logging cmdlog enable
+syslog facility local0
+syslog severity 6
+line console idle-timeout 15
+line console absolute-timeout 1440
+line telnet idle-timeout 15
+line telnet absolute-timeout 1440
+line telnet users 16
+
+no hotkey ctrl_g
+no hotkey ctrl_l
+no hotkey ctrl_o
+no hotkey ctrl_r
+no hotkey ctrl_s
+no hotkey ctrl_t
+!
+ssh server authentication mode local
+ssh server authentication type pap
+no ssh server only
+ssh server version 2
+!
+!
+radius attribute vendor-specific vendor-id 3902
+!
+!
+!
+radius server-port-check on
+!
+!
+tacacs disable
+tacacs-server timeout 5
+tacacs-server packet 1024
+!
+!
+alarm enable
+alarm confirm
+alarm trap-confirm retry 3 timeout 20
+nms-hello-trap disable
+alarm report-speed 0
+alarm anti-jitter 0
+alarm filter source-code    11 dest-code    12
+ipv6 dhcp snooping disable
+!
+ipv6 dhcp snooping ifdown-del-entry disable
+!
+ipv6 nd snooping disable
+!
+!
+control-panel
+  packet-limit arp 300
+  packet-limit icmp 250
+  packet-limit igmp 300
+  packet-limit dhcp 160
+  packet-limit snmp 200
+  packet-limit telnet 300
+  packet-limit bfd 300po
+  packet-limit stp 500
+  packet-limit lacp 600
+  packet-limit lldp 500
+  packet-limit rip 500
+  packet-limit bgp 500
+  packet-limit ospf 400
+  packet-limit isis 400
+  packet-limit ldp 600
+  packet-limit cfm 32
+  packet-limit ipv6_rs 700
+  packet-limit ipv6_ra 700
+  packet-limit ipv6_ns 200
+  packet-limit ipv6_na 600
+  packet-limit ipv6_icmp 200
+  packet-limit ipv6_dhcp 160
+  packet-limit r-aps 1000
+!
+!
+end
+
+
+
+
+
+
+
+
+
+interface gpon-olt_1/13/4
+show gpon onu state gpon-olt_1/13/4
+show gpon onu uncfg gpon-olt_1/13/4
+show running-config interface gpon-olt_1/13/4
+onu 1 type generec-f670 sn es la nueva
+sn ZTEGGDADC11E7
+show running-config interface gpon-onu_1/13/4:2
+
+
+
+
+
+
+
+
+
+
+
+ZXAN(config)# interface gpon-olt_1/13/4
+ZXAN(config-if)# onu 1 type ZTEG-F670 sn ZTEGDADC11E7
+ZXAN(config-if)# exit
+
+
+
+
+
+aprevicionamiento desde cero 
+show gpon onu uncfg gpon-olt_1/13/4
+
+gpon-onu_1/13/4:1        ZTEGC826D7E0        unknown
+ZXAN(config)#
+
+ZXAN(config-if)#onu 3  type generic-F670 sn ZTEGC826D7E0
+.[Successful]
+ZXAN(config-if)#exit
+
+gpon-onu_1/13/4:1      enable       disable      unknown      LOS
+gpon-onu_1/13/4:2      enable       disable      unknown      OffLine
+gpon-onu_1/13/4:3      enable       enable       operation    working
+ONU Number: 1/3
+ZXAN(config)#
+
+configure terminal
+
+interface gpon-onu_1/13/4:3
+  tcont 1 profile INTERNET
+  gemport 1 tcont 1
+  switchport mode hybrid vport 1
+  service-port 1 vport 1 user-vlan 200 vlan 200
+  
+exit
+
+
+
+ZXAN(config)#pon-onu-mng gpon-onu_1/13/4:3
+ZXAN(gpon-onu-mng 1/13/4:3)#service INTERNET gemport 1 vlan 200
+ZXAN(gpon-onu-mng 1/13/4:3)#  wan-ip 1 mode dhcp vlan-profile HSI-200 host 1
+ZXAN(gpon-onu-mng 1/13/4:3)#  vlan port eth_0/1 mode tag vlan 200
+ZXAN(gpon-onu-mng 1/13/4:3)#  vlan port eth_0/2 mode tag vlan 200
+ZXAN(gpon-onu-mng 1/13/4:3)#  vlan port eth_0/3 mode tag vlan 200
+ZXAN(gpon-onu-mng 1/13/4:3)#  vlan port eth_0/4 mode tag vlan 200
+ZXAN(gpon-onu-mng 1/13/4:3)#
+

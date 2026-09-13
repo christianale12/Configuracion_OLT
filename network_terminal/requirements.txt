@@ -1,0 +1,7 @@
+# network_terminal — dependencias
+#
+# La GUI (tkinter), Telnet (socket) y los tests (unittest) usan SOLO la
+# biblioteca estándar de Python 3.11+. No requieren instalar nada.
+#
+# SSH es lo único que necesita una dependencia externa:
+paramiko>=3.4,<4        # requerido solo para conexiones SSH  ->  pip install paramiko

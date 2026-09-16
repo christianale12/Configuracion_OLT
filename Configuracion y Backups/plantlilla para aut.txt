@@ -1,0 +1,30 @@
+! === 1. Verificar SN real antes de nada ===
+show gpon onu uncfg gpon-olt_<PUERTO>
+
+! === 2. Alta en OLT ===
+conf t
+interface gpon-olt_<PUERTO>
+  onu <N> type <MODELO> sn <SN>
+exit
+
+! === 3. Esperar 30-60 seg, luego confirmar ===
+show gpon onu state gpon-olt_<PUERTO>
+
+! === 4. Interfaz ONU (solo 5 líneas fijas + 1 variable: el plan) ===
+conf t
+interface gpon-onu_<PUERTO>:<N>
+  sn-bind enable sn
+  tcont 1 name internet profile plan-<XXX>
+  gemport 1 name internet tcont 1
+  gemport 1 traffic-limit downstream DOWN-<XXX>
+  switchport mode hybrid vport 1
+  service-port 1 vport 1 user-vlan 200 vlan 200
+exit
+
+! === 5. Lado ONU ===
+conf t
+pon-onu-mng gpon-onu_<PUERTO>:<N>
+  service 1 gemport 1 vlan 200
+  wan-ip 1 mode dhcp vlan-profile HSI-200 host 1
+  vlan port eth_0/1 mode tag vlan 200
+exit

@@ -1,0 +1,265 @@
+pon
+  onu-type-if ZTEG-F670L eth_0/1
+  onu-type-if ZTEG-F670L eth_0/2
+  onu-type-if ZTEG-F670L eth_0/3
+  onu-type-if ZTEG-F670L eth_0/4
+  onu-type-if ZTEG-F670L pots_0/1
+  onu-type-if ZTEG-F670L wifi_0/1
+vlan 400
+
+name vozip
+exit
+gpon
+profile tcont plan-100m type 4 maximum 102400
+profile traffic DOWN-100M sir 102400 pir 102400
+
+profile tcont plan-300m type 4 maximum 307200
+profile traffic DOWN-300M sir 307200 pir 307200
+exit
+
+profile tcont plan-600m type 4 maximum 614400
+profile traffic DOWN-600M sir 614400 pir 614400
+
+profile tcont plan-1g type 4 maximum 1024000
+profile traffic DOWN-1G sir 1024000 pir 1024000
+
+conf t
+pon
+onu-profile gpon INT-100M
+  fec upstream
+  tcont 10 name internet profile plan-100m
+  gemport 10 name internet tcont 10
+  gemport 10 traffic-limit downstream DOWN-100M
+  gemport 11 name iptv tcont 10
+  gemport 12 name voz tcont 10
+remote
+
+onu-profile gpon INT-300M
+  fec upstream
+  tcont 10 name internet profile plan-300m
+  gemport 10 name internet tcont 10
+  gemport 10 traffic-limit downstream DOWN-300M
+  gemport 11 name iptv tcont 10
+  gemport 12 name voz tcont 10
+remote
+
+onu-profile gpon INT-M600
+  fec upstream
+  tcont 10 name internet profile plan-600m
+  gemport 10 name internet tcont 10
+  gemport 10 traffic-limit downstream DOWN-600M
+  gemport 11 name iptv tcont 10
+  gemport 12 name voz tcont 10
+remote
+
+onu-profile gpon INT-1GM
+  fec upstream
+  tcont 10 name internet profile plan-1g
+  gemport 10 name internet tcont 10
+  gemport 10 traffic-limit downstream DOWN-1G
+  gemport 11 name iptv tcont 10
+  gemport 12 name voz tcont 10
+remote
+
+
+
+proximo paso en la interfaz lado olt ejemplo
+
+
+conf t
+interface gpon-olt_1/13/4
+  no shutdown
+  linktrap disable
+  onu 1 type generic-F670 sn ZTEGDADC11E7
+  onu 2 type ZTEG-F670 sn ZTEGC826D2E0
+interface gpon-onu_1/13/4:2 
+sn-bind enable sn
+tcont 1 name internet profile plan-300m
+  gemport 1 name internet tcont 1
+  gemport 1 traffic-limit downstream DOWN-300M
+  gemport 2 name iptv tcont 1
+  gemport 3 name vozip tcont 1
+  switchport mode hybrid vport 1
+  switchport mode hybrid vport 2
+  switchport mode hybrid vport 3
+  service-port 1 vport 1 user-vlan 200 vlan 200
+  service-port 2 vport 2 user-vlan 300 vlan 300
+  service-port 3 vport 3 user-vlan 400 vlan 400
+exit
+
+
+proximo lado onu bridge
+conf t
+pon-onu-mng gpon-onu_1/13/4:2
+  service 1 gemport 1 vlan 200
+  service 2 gemport 2 vlan 300
+  service 3 gemport 3 vlan 400
+
+
+  vlan port eth_0/1 mode tag vlan 200
+  
+  vlan port eth_0/2 mode tag vlan 300
+  
+  vlan port eth_0/3 mode tag vlan 400
+exit
+
+
+modo router
+conf t
+interface gpon-onu_1/13/4:2
+  sn-bind enable sn
+  tcont 1 name internet profile plan-300m
+  gemport 1 name internet tcont 1
+  gemport 1 traffic-limit downstream DOWN-300M
+  gemport 2 name iptv tcont 1
+  gemport 3 name vozip tcont 1
+  switchport mode hybrid vport 1
+  switchport mode hybrid vport 2
+  switchport mode hybrid vport 3
+  service-port 1 vport 1 user-vlan 200 vlan 200
+  service-port 2 vport 2 user-vlan 300 vlan 300
+  service-port 3 vport 3 user-vlan 400 vlan 400
+exit
+
+conf t
+pon-onu-mng gpon-onu_1/13/4:2
+
+  service 1 gemport 1 vlan 200
+  service 2 gemport 2 vlan 300
+  service 3 gemport 3 vlan 400
+  wan-ip 1 mode dhcp vlan-profile HSI-200 host 1
+  vlan port eth_0/1 mode tag vlan 200
+  vlan port eth_0/2 mode tag vlan 300
+  vlan port eth_0/3 mode tag vlan 400
+exit
+
+1135251511
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ZXAN(config-pon)#show running-config | include onu-profile
+onu-profile gpon line
+onu-profile gpon INT-1GM
+onu-profile gpon INT-100M
+onu-profile gpon INT-300M
+onu-profile gpon INT-M600
+onu-profile gpon PLAN300M
+ZXAN(config-pon)#
+
+
+
+
+ZXAN(config-pon)#show running-config | include profile tcont
+  profile tcont plan-1g type 4 maximum 1024000
+  profile tcont INTERNET type 4 maximum 1024000
+  profile tcont plan-100m type 4 maximum 102400
+  profile tcont plan-300m type 4 maximum 307200
+  profile tcont plan-600m type 4 maximum 614400
+  profile tcont UP-300M-MAN type 4 maximum 307200
+ZXAN(config-pon)#show running-config | include profile traffic
+  profile traffic DOWN-1G sir 1024000 pir 1024000
+  profile traffic DOWN-100M sir 102400 pir 102400
+  profile traffic DOWN-300M sir 307200 pir 307200
+  profile traffic DOWN-600M sir 614400 pir 614400
+  profile traffic DOWN-300M-MAN sir 307200 pir 307200
+ZXAN(config-pon)#
+
+
+
+show gpon onu uncfg gpon-olt_1/13/4
+muestra la interfaz
+
+ZXAN#show gpon onu uncfg gpon-olt_1/13/4
+OnuIndex                 Sn                  State
+---------------------------------------------------------------------
+gpon-onu_1/13/4:1        ZTEGC826D7E0        unknown
+ZXAN#
+
+
+
+ZXAN#show gpon onu state gpon-olt_1/13/4
+OnuIndex               Admin State  OMCC State   O7 State     Phase State
+----------------------------------------------------------------------------
+gpon-onu_1/13/4:1      enable       disable      unknown      OffLine
+gpon-onu_1/13/4:2      enable       enable       operation    working
+ONU Number: 1/2
+ZXAN#
+
+
+ZXAN#show running-config interface gpon-olt_1/13/4
+Building configuration...
+interface gpon-olt_1/13/4
+  no shutdown
+  linktrap disable
+  onu 1 type generic-F670 sn ZTEGDADC11E7
+  onu 2 type ZTEG-F670 sn ZTEGC826D2E0
+!
+end
+ZXAN#
+
+
+ver si hay una nueva onu 
+show gpon onu uncfg gpon-olt_1/13/4
+
+ZXAN#show gpon onu uncfg gpon-olt_1/13/4
+OnuIndex                 Sn                  State
+---------------------------------------------------------------------
+gpon-onu_1/13/4:1        ZTEGDADC11E7        unknown
+ZXAN#
+
+verificar que los comandos quedaron sin error
+
+ZXAN(config)#pon
+ZXAN(config-pon)#onu-type-if ZTEG-F670L eth_0/1
+ZXAN(config-pon)#onu-type-if ZTEG-F670L eth_0/2
+ZXAN(config-pon)#onu-type-if ZTEG-F670L eth_0/3
+ZXAN(config-pon)#onu-type-if ZTEG-F670L eth_0/4
+ZXAN(config-pon)#onu-type-if ZTEG-F670L pots_0/1
+ZXAN(config-pon)#onu-type-if ZTEG-F670L wifi_0/1
+ZXAN(config-pon)#show running-config | include ZTEG-F670L
+  onu-type ZTEG-F670L gpon description 4GE_1POTS_WIFI
+  onu-type ZTEG-F670L gpon max-tcont 8
+  onu-type ZTEG-F670L gpon max-gemport 32
+  onu-type ZTEG-F670L gpon max-switch-perslot 8
+  onu-type ZTEG-F670L gpon max-flow-perswitch 32
+  onu-type-if ZTEG-F670L eth_0/1
+  onu-type-if ZTEG-F670L eth_0/2
+  onu-type-if ZTEG-F670L eth_0/3
+  onu-type-if ZTEG-F670L eth_0/4
+  onu-type-if ZTEG-F670L pots_0/1
+  onu-type-if ZTEG-F670L wifi_0/1
+ZXAN(config-pon)#
+
+
+muestra la interfaces que estan ocupadas
+show running-config interface gpon-olt_1/13/4
+
+
+

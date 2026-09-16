@@ -1,0 +1,52 @@
+profile tcont plan-100m type 4 maximum 102400
+profile traffic DOWN-100M sir 102400 pir 102400
+
+profile tcont plan-300m type 4 maximum 307200
+profile traffic DOWN-300M sir 307200 pir 307200
+exit
+
+profile tcont plan-600m type 4 maximum 614400
+profile traffic DOWN-600M sir 614400 pir 614400
+
+profile tcont plan-1g type 4 maximum 1024000
+profile traffic DOWN-1G sir 1024000 pir 1024000
+
+
+Paso 1 — Limpiar la onu 1 con el SN incorrecto
+
+conf t
+interface gpon-olt_1/13/4
+  no onu 1
+exit
+
+Paso 2 — Dar de alta la ONU real con el SN correcto
+
+conf t
+interface gpon-olt_1/13/4
+  onu 1 type generic-F670 sn ZTEGC826D7E0
+exit
+
+Paso 3 — Configurar la interfaz con el plan de 600M
+
+conf t
+interface gpon-onu_1/13/4:1
+  sn-bind enable sn
+  tcont 1 name internet profile plan-600m
+  gemport 1 name internet tcont 1
+  gemport 1 traffic-limit downstream DOWN-600M
+  switchport mode hybrid vport 1
+  service-port 1 vport 1 user-vlan 200 vlan 200
+exit
+
+Paso 4 — Configurar el lado ONU
+
+conf t
+pon-onu-mng gpon-onu_1/13/4:1
+  service 1 gemport 1 vlan 200
+  wan-ip 1 mode dhcp vlan-profile HSI-200 host 1
+  vlan port eth_0/1 mode tag vlan 200
+exit
+
+Paso 5 — Verificar
+
+show gpon onu state gpon-olt_1/13/4

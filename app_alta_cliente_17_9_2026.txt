@@ -1,0 +1,537 @@
+#!/usr/bin/env python3
+"""
+App web para aprovisionamiento de ONUs en OLT ZTE ZXAN (GPON)
+================================================================
+
+Corre un servidor web local con un formulario para:
+  - Ver ONUs conectadas y sin configurar en un puerto (show gpon onu uncfg)
+  - Dar de alta un cliente nuevo (internet, y opcional IPTV/VoIP en modo bridge)
+  - Ver el estado de las ONUs de un puerto (show gpon onu state)
+  - Validar que la configuracion se aplico correctamente (revisa running-config
+    y que la ONU quede online)
+
+Requiere:
+    pip install flask --break-system-packages
+    (usa Telnet nativo de Python, no hace falta paramiko)
+
+Para correrla:
+    python3 app.py
+    (despues abrir http://localhost:5000 en el navegador)
+
+Si la vas a compartir con otros compañeros de la facultad en la misma red,
+correla con host="0.0.0.0" (ya configurado abajo) y que ellos entren a
+http://<IP-de-tu-PC>:5000
+
+IMPORTANTE: Telnet no cifra nada, ni la contraseña ni los comandos.
+Usar solo dentro de una red cerrada y confiable (ej: laboratorio de la
+facultad), nunca sobre internet ni redes compartidas con desconocidos.
+"""
+
+import re
+import socket
+import time
+from flask import Flask, request, render_template_string
+
+app = Flask(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Logica de armado de comandos (misma que el script de linea de comandos)
+# ---------------------------------------------------------------------------
+def nombre_traffic_profile(plan):
+    sufijo = plan.replace("plan-", "").upper()
+    return f"DOWN-{sufijo}"
+
+
+def construir_comandos_alta(puerto, onu_id, modelo, sn, plan, modo, servicios_extra=False):
+    interfaz_olt = f"gpon-olt_{puerto}"
+    interfaz_onu = f"gpon-onu_{puerto}:{onu_id}"
+    plan_norm = plan if plan.startswith("plan-") else f"plan-{plan}"
+    traffic = nombre_traffic_profile(plan_norm)
+
+    comandos = ["configure terminal", f"interface {interfaz_olt}",
+                f"onu {onu_id} type {modelo} sn {sn}", "exit"]
+
+    comandos += [f"interface {interfaz_onu}", "sn-bind enable sn",
+                 f"tcont 1 name internet profile {plan_norm}",
+                 "gemport 1 name internet tcont 1",
+                 f"gemport 1 traffic-limit downstream {traffic}",
+                 "switchport mode hybrid vport 1",
+                 "service-port 1 vport 1 user-vlan 200 vlan 200"]
+
+    if servicios_extra:
+        comandos += ["switchport mode hybrid vport 2",
+                     "switchport mode hybrid vport 3",
+                     "service-port 2 vport 2 user-vlan 300 vlan 300",
+                     "service-port 3 vport 3 user-vlan 400 vlan 400"]
+
+    comandos.append("exit")
+    comandos.append(f"pon-onu-mng {interfaz_onu}")
+    comandos.append("service 1 gemport 1 vlan 200")
+    if servicios_extra:
+        comandos += ["service 2 gemport 1 vlan 300",
+                     "service 3 gemport 1 vlan 400"]
+
+    if modo == "router":
+        comandos.append("wan-ip 1 mode dhcp vlan-profile HSI-200 host 1")
+
+    for n in (1, 2, 3, 4):
+        comandos.append(f"vlan port eth_0/{n} mode tag vlan 200")
+        if servicios_extra:
+            comandos.append(f"vlan port eth_0/{n} mode tag vlan 300")
+            comandos.append(f"vlan port eth_0/{n} mode tag vlan 400")
+
+    comandos += ["exit", "end", f"show gpon onu state {interfaz_olt}"]
+    return comandos
+
+
+# ---------------------------------------------------------------------------
+# Validacion de datos del formulario (evita inyeccion de comandos)
+# ---------------------------------------------------------------------------
+MODELOS_VALIDOS = {"generic-F670", "ZTEG-F670", "ZTEG-F670L", "generic-F601"}
+PLANES_VALIDOS = {"100m", "300m", "600m", "1g",
+                  "plan-100m", "plan-300m", "plan-600m", "plan-1g"}
+
+RE_PUERTO = re.compile(r"^\d+(?:/\d+){1,3}$")
+RE_SN = re.compile(r"^[A-Za-z0-9]{12}$")
+
+
+def validar_puerto(puerto):
+    if not RE_PUERTO.match(puerto):
+        raise ValueError("Puerto invalido (formato esperado: 1/13/4).")
+
+
+def validar_onu_id(onu_id):
+    if not onu_id.isdigit() or not (0 <= int(onu_id) <= 127):
+        raise ValueError("El numero de ONU debe ser un entero entre 0 y 127.")
+
+
+def validar_sn(sn):
+    if not RE_SN.match(sn):
+        raise ValueError("El SN debe tener exactamente 12 caracteres alfanumericos.")
+
+
+def validar_opciones(modelo, plan, modo):
+    if modelo not in MODELOS_VALIDOS:
+        raise ValueError(f"Modelo no soportado: {modelo}")
+    plan_norm = plan if plan.startswith("plan-") else f"plan-{plan}"
+    if plan_norm not in PLANES_VALIDOS:
+        raise ValueError(f"Plan no soportado: {plan}")
+    if modo not in ("router", "bridge"):
+        raise ValueError(f"Modo no soportado: {modo}")
+
+
+# ---------------------------------------------------------------------------
+# Conexion por Telnet (socket nativo de Python, sin librerias externas)
+# ---------------------------------------------------------------------------
+IAC, DONT, DO, WONT, WILL = 255, 254, 253, 252, 251
+
+
+def _limpiar_iac(sock, datos):
+    limpio = bytearray()
+    i = 0
+    n = len(datos)
+    while i < n:
+        b = datos[i]
+        if b == IAC and i + 2 < n:
+            cmd, opt = datos[i + 1], datos[i + 2]
+            if cmd == DO:
+                sock.sendall(bytes([IAC, WONT, opt]))
+            elif cmd == WILL:
+                sock.sendall(bytes([IAC, DONT, opt]))
+            i += 3
+            continue
+        elif b == IAC and i + 1 < n:
+            i += 2
+            continue
+        limpio.append(b)
+        i += 1
+    return bytes(limpio)
+
+
+def _leer_hasta(sock, marcas, timeout=8):
+    sock.settimeout(0.5)
+    datos = b""
+    fin = time.time() + timeout
+    coincide = False
+    try:
+        while time.time() < fin:
+            try:
+                fragmento = sock.recv(4096)
+            except socket.timeout:
+                continue
+            if not fragmento:
+                break
+            datos += fragmento
+            texto = _limpiar_iac(sock, datos).decode(errors="ignore")
+            if any(m in texto for m in marcas):
+                coincide = True
+                break
+    except OSError:
+        pass
+    try:
+        texto = _limpiar_iac(sock, datos).decode(errors="ignore")
+    except OSError:
+        texto = datos.decode(errors="ignore")
+    return texto, coincide
+
+
+def ejecutar_por_telnet(host, usuario, password, comandos, espera=0.3, puerto_telnet=23):
+    sock = socket.create_connection((host, puerto_telnet), timeout=15)
+    salida = []
+
+    try:
+        inicial, _ = _leer_hasta(sock, ["Username", "Username:", "Login:", "login:"], timeout=5)
+        salida.append(inicial)
+
+        sock.sendall((usuario + "\r\n").encode())
+        resp_user, _ = _leer_hasta(sock, ["assword", "assword:"], timeout=5)
+        salida.append(resp_user)
+
+        sock.sendall((password + "\r\n").encode())
+        resp_pass, _ = _leer_hasta(sock, ["#", ">"], timeout=8)
+        salida.append(resp_pass)
+
+        if "%" in resp_pass and (
+                "nvalid" in resp_pass or "denied" in resp_pass.lower()
+                or "ailed" in resp_pass.lower() or "icorrect" in resp_pass.lower()):
+            raise RuntimeError(
+                "La OLT rechazo el usuario o la contrasena durante el login por Telnet.")
+
+        for cmd in comandos:
+            sock.sendall((cmd + "\r\n").encode())
+            if espera:
+                time.sleep(espera)
+            respuesta, _ = _leer_hasta(sock, ["#", ">"], timeout=10)
+            salida.append(f"$ {cmd}\n{respuesta}")
+
+    finally:
+        sock.close()
+
+    return "\n".join(salida)
+
+
+# ---------------------------------------------------------------------------
+# Validacion de que la configuracion quedo aplicada correctamente
+# ---------------------------------------------------------------------------
+def verificar_aplicacion(salida, onu_id, servicios_extra):
+    problemas = []
+    esperados = [
+        "sn-bind enable sn",
+        "service-port 1 vport 1 user-vlan 200 vlan 200",
+        "service 1 gemport 1 vlan 200",
+        "vlan port eth_0/1 mode tag vlan 200",
+        "vlan port eth_0/4 mode tag vlan 200",
+    ]
+    if servicios_extra:
+        esperados += [
+            "service-port 2 vport 2 user-vlan 300 vlan 300",
+            "service-port 3 vport 3 user-vlan 400 vlan 400",
+            "service 2 gemport 1 vlan 300",
+            "service 3 gemport 1 vlan 400",
+            "vlan port eth_0/1 mode tag vlan 300",
+            "vlan port eth_0/1 mode tag vlan 400",
+        ]
+
+    faltantes = [linea for linea in esperados if linea not in salida]
+    if faltantes:
+        problemas.append("Faltan en la configuracion aplicada: " + ", ".join(faltantes))
+
+    linea_onu = next(
+        (ln for ln in salida.splitlines()
+         if re.search(rf"(?<![0-9A-Za-z]){re.escape(onu_id)}(?![0-9A-Za-z])", ln)
+         and any(p in ln.lower() for p in ("online", "offline", "off-line",
+                                           "absent", "state:", "working"))), None)
+    if linea_onu is None:
+        problemas.append(
+            "No se encontro una linea de estado (online/offline/working) "
+            "para la ONU %s en el estado del puerto." % onu_id)
+    elif not any(estado in linea_onu.lower() for estado in ("online", "working")):
+        problemas.append(
+            "La ONU %s no figura 'online' ni 'working' (%s)." % (onu_id, linea_onu.strip()))
+
+    return len(problemas) == 0, problemas
+
+
+# ---------------------------------------------------------------------------
+# Plantilla HTML (un solo archivo, sin dependencias externas de CSS/JS)
+# ---------------------------------------------------------------------------
+PAGINA = """
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Aprovisionamiento ONU - ZXAN</title>
+<style>
+  body { font-family: -apple-system, Arial, sans-serif; max-width: 900px; margin: 30px auto; padding: 0 15px; color: #1a1a1a; }
+  h1 { font-size: 1.4rem; }
+  fieldset { border: 1px solid #ccc; border-radius: 8px; padding: 15px 20px; margin-bottom: 20px; }
+  legend { font-weight: 600; padding: 0 6px; }
+  label { display: block; margin-top: 10px; font-size: 0.9rem; color: #444; }
+  input, select { width: 100%; padding: 6px 8px; margin-top: 3px; box-sizing: border-box; border: 1px solid #bbb; border-radius: 4px; }
+  .fila { display: flex; gap: 15px; }
+  .fila > div { flex: 1; }
+  button { margin-top: 15px; padding: 10px 18px; border: none; border-radius: 6px; background: #2563eb; color: white; font-size: 0.95rem; cursor: pointer; }
+  button.secundario { background: #6b7280; }
+  button:hover { opacity: 0.9; }
+  pre { background: #0f172a; color: #d1fae5; padding: 15px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; font-size: 0.85rem; }
+  .aviso { background: #fff7ed; border: 1px solid #fdba74; padding: 10px 15px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 15px; }
+</style>
+</head>
+<body>
+<h1>Aprovisionamiento de ONUs - OLT ZTE ZXAN</h1>
+<div class="aviso">Conexión por Telnet (sin cifrar) — usar solo dentro de la red del laboratorio/facultad. La contraseña se usa solo para esta conexión y no se guarda en ningún lado.</div>
+
+<form method="post">
+  <fieldset>
+    <legend>Conexión a la OLT</legend>
+    <div class="fila">
+      <div>
+        <label>IP de gestión</label>
+        <input name="host" value="{{ f.host or '10.99.99.2' }}" required>
+      </div>
+      <div>
+        <label>Usuario</label>
+        <input name="user" value="{{ f.user or 'cidi' }}" required>
+      </div>
+      <div>
+        <label>Contraseña</label>
+        <input type="password" name="password" required>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Datos del cliente</legend>
+    <div class="fila">
+      <div>
+        <label>Puerto (ej: 1/13/4)</label>
+        <input name="puerto" value="{{ f.puerto or '1/13/4' }}" required>
+      </div>
+      <div>
+        <label>Número de ONU</label>
+        <input name="onu_id" value="{{ f.onu_id or '' }}" required>
+      </div>
+      <div>
+        <label>Modelo</label>
+        <select name="modelo">
+          <option {{ 'selected' if f.modelo=='generic-F670' else '' }}>generic-F670</option>
+          <option {{ 'selected' if f.modelo=='ZTEG-F670' else '' }}>ZTEG-F670</option>
+          <option {{ 'selected' if f.modelo=='ZTEG-F670L' else '' }}>ZTEG-F670L</option>
+          <option {{ 'selected' if f.modelo=='generic-F601' else '' }}>generic-F601</option>
+        </select>
+      </div>
+    </div>
+    <label>Número de serie (SN, 12 caracteres)</label>
+    <input name="sn" value="{{ f.sn or '' }}" required>
+    <div class="fila">
+      <div>
+        <label>Plan</label>
+        <select name="plan">
+          <option value="100m" {{ 'selected' if f.plan=='100m' else '' }}>100 Mb</option>
+          <option value="300m" {{ 'selected' if f.plan=='300m' else '' }}>300 Mb</option>
+          <option value="600m" {{ 'selected' if f.plan=='600m' else '' }}>600 Mb</option>
+          <option value="1g" {{ 'selected' if f.plan=='1g' else '' }}>1 Gb</option>
+        </select>
+      </div>
+      <div>
+        <label>Modo</label>
+        <select name="modo">
+          <option value="router" {{ 'selected' if f.modo=='router' else '' }}>Router</option>
+          <option value="bridge" {{ 'selected' if f.modo=='bridge' else '' }}>Bridge</option>
+        </select>
+      </div>
+    </div>
+    <label style="display:flex; align-items:center; gap:8px; margin-top:12px;">
+      <input type="checkbox" name="servicios_extra" style="width:auto" {{ 'checked' if f.servicios_extra=='on' else '' }}>
+      Servicios adicionales: IPTV + VoIP (VLAN 300/400) — solo bridge
+    </label>
+  </fieldset>
+
+  <button type="submit" name="accion" value="autocompletar" style="background:#0284c7; margin-bottom: 10px; width: 100%;">
+    🔍 Buscar SN pendiente y asignar ONU-ID libre automáticamente
+  </button>
+  
+  <button type="submit" name="accion" value="uncfg">1. Ver ONUs sin configurar en el puerto</button>
+  <button type="submit" name="accion" value="ocupadas" class="secundario">Ver ONU-ID ocupados en el puerto</button>
+  <button type="submit" name="accion" value="provisionar">2. Preparar alta (revisar y confirmar)</button>
+  <button type="submit" name="accion" value="estado" class="secundario">Ver estado del puerto</button>
+  <button type="submit" name="accion" value="eliminar" class="secundario" style="background:#b91c1c">
+    Preparar eliminación de ONU (usa el campo &quot;Número de ONU&quot;)
+  </button>
+</form>
+
+{% if comandos_previos %}
+<h3>Comandos{% if confirmado %} enviados{% else %} que se van a enviar (revisar antes de confirmar){% endif %}</h3>
+<pre>{{ comandos_previos }}</pre>
+{% if not confirmado %}
+<form method="post" style="margin-top:10px">
+  <input type="hidden" name="host" value="{{ f.host or '' }}">
+  <input type="hidden" name="user" value="{{ f.user or '' }}">
+  <input type="hidden" name="password" value="{{ f.password or '' }}">
+  <input type="hidden" name="puerto" value="{{ f.puerto or '' }}">
+  <input type="hidden" name="onu_id" value="{{ f.onu_id or '' }}">
+  <input type="hidden" name="modelo" value="{{ f.modelo or '' }}">
+  <input type="hidden" name="sn" value="{{ f.sn or '' }}">
+  <input type="hidden" name="plan" value="{{ f.plan or '' }}">
+  <input type="hidden" name="modo" value="{{ f.modo or '' }}">
+  <input type="hidden" name="servicios_extra" value="{{ 'on' if f.servicios_extra=='on' else '' }}">
+  <button type="submit" name="accion" value="{{ confirm_accion }}" style="background:#15803d">Sí, confirmar y ejecutar</button>
+  <button type="submit" name="accion" value="volver" class="secundario">Volver / cancelar</button>
+</form>
+{% endif %}
+{% endif %}
+
+{% if verificacion_ok is not none %}
+<h3>Validación de configuración</h3>
+{% if verificacion_ok %}
+<div style="background:#f0fdf4; border:1px solid #86efac; padding:10px 15px; border-radius:6px;">
+  OK: configuración aplicada correctamente. La ONU quedó online y todos los service-ports y VLANs están presentes en el running-config.
+</div>
+{% else %}
+<div style="background:#fef2f2; border:1px solid #fca5a5; padding:10px 15px; border-radius:6px; color:#7f1d1d;">
+  Fallo: problemas detectados tras aplicar la configuración
+  <ul>{% for nota in verificacion_notas %}<li>{{ nota }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+{% endif %}
+
+{% if salida %}
+<h3>Resultado</h3>
+<pre>{{ salida }}</pre>
+{% endif %}
+
+{% if error %}
+<h3 style="color:#b91c1c">Error</h3>
+<pre style="background:#450a0a; color:#fecaca">{{ error }}</pre>
+{% endif %}
+
+</body>
+</html>
+"""
+
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    f = dict(request.form)
+    salida = None
+    error = None
+    comandos_previos = None
+    confirm_accion = None
+    confirmado = False
+    verificacion_ok = None
+    verificacion_notas = None
+
+    if request.method == "POST":
+        host = f.get("host", "").strip()
+        user = f.get("user", "").strip()
+        password = f.get("password", "")
+        puerto = f.get("puerto", "").strip()
+        accion = f.get("accion")
+
+        try:
+            if accion == "volver":
+                pass
+                
+            elif accion == "autocompletar":
+                validar_puerto(puerto)
+                
+                # 1. Buscar un SN sin configurar
+                cmds_uncfg = [f"show gpon onu uncfg gpon-olt_{puerto}"]
+                salida_uncfg = ejecutar_por_telnet(host, user, password, cmds_uncfg)
+                match_sn = re.search(r"\b([A-Za-z0-9]{12})\b", salida_uncfg)
+                
+                # 2. Buscar qué IDs ya están ocupados en ese puerto
+                cmds_run = [f"show running-config interface gpon-olt_{puerto}"]
+                salida_run = ejecutar_por_telnet(host, user, password, cmds_run)
+                ocupados = set(int(m) for m in re.findall(r"onu (\d+) type", salida_run))
+                
+                # 3. Calcular el primer ID disponible empezando desde el 1
+                id_libre = 1
+                while id_libre in ocupados and id_libre <= 128:
+                    id_libre += 1
+                
+                f['onu_id'] = str(id_libre)
+                
+                if match_sn:
+                    f['sn'] = match_sn.group(1)
+                    salida = f"Éxito: Se completó el SN {f['sn']} y se asignó el ID libre {id_libre}."
+                else:
+                    error = "No se detectó ninguna ONU pendiente de configuración en este puerto. Se asignó el ID libre por si querés poner el SN a mano."
+
+            elif accion == "uncfg":
+                validar_puerto(puerto)
+                cmds = [f"show gpon onu uncfg gpon-olt_{puerto}"]
+                salida = ejecutar_por_telnet(host, user, password, cmds)
+
+            elif accion == "estado":
+                validar_puerto(puerto)
+                cmds = [f"show gpon onu state gpon-olt_{puerto}"]
+                salida = ejecutar_por_telnet(host, user, password, cmds)
+
+            elif accion == "ocupadas":
+                validar_puerto(puerto)
+                cmds = [f"show running-config interface gpon-olt_{puerto}"]
+                salida = ejecutar_por_telnet(host, user, password, cmds)
+
+            elif accion in ("eliminar", "eliminar_confirmar"):
+                validar_puerto(puerto)
+                onu_id = f.get("onu_id", "").strip()
+                validar_onu_id(onu_id)
+                cmds = ["configure terminal", f"interface gpon-olt_{puerto}",
+                        f"no onu {onu_id}", "exit", "end",
+                        f"show running-config interface gpon-olt_{puerto}"]
+                comandos_previos = "\n".join(cmds)
+                if accion == "eliminar_confirmar":
+                    confirmado = True
+                    salida = ejecutar_por_telnet(host, user, password, cmds)
+                else:
+                    confirm_accion = "eliminar_confirmar"
+
+            elif accion in ("provisionar", "provisionar_confirmar"):
+                validar_puerto(puerto)
+                onu_id = f.get("onu_id", "").strip()
+                sn = f.get("sn", "").strip()
+                modelo = f.get("modelo", "").strip()
+                plan = f.get("plan", "").strip()
+                modo = f.get("modo", "router")
+                servicios_extra = f.get("servicios_extra") == "on"
+                validar_onu_id(onu_id)
+                validar_sn(sn)
+                validar_opciones(modelo, plan, modo)
+                if servicios_extra and modo != "bridge":
+                    raise ValueError(
+                        "IPTV/VoIP (VLAN 300/400) solo se habilita en modo bridge.")
+                cmds = construir_comandos_alta(
+                    puerto=puerto, onu_id=onu_id, modelo=modelo, sn=sn,
+                    plan=plan, modo=modo, servicios_extra=servicios_extra,
+                )
+                comandos_previos = "\n".join(cmds)
+                if accion == "provisionar_confirmar":
+                    confirmado = True
+                    salida = ejecutar_por_telnet(host, user, password, cmds)
+                    verif_cmds = [
+                        f"show running-config interface gpon-onu_{puerto}:{onu_id}",
+                        f"show pon-onu-mng gpon-onu_{puerto}:{onu_id}",
+                    ]
+                    salida2 = ejecutar_por_telnet(host, user, password, verif_cmds)
+                    salida = (salida + "\n\n" + "=" * 40
+                              + " VERIFICACION " + "=" * 40 + "\n" + salida2)
+                    verificacion_ok, verificacion_notas = verificar_aplicacion(
+                        salida, onu_id, servicios_extra)
+                else:
+                    confirm_accion = "provisionar_confirmar"
+
+        except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
+
+    return render_template_string(
+        PAGINA, f=f, salida=salida, error=error,
+        comandos_previos=comandos_previos,
+        confirm_accion=confirm_accion, confirmado=confirmado,
+        verificacion_ok=verificacion_ok,
+        verificacion_notas=verificacion_notas)
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=False)

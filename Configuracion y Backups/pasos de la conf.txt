@@ -17,6 +17,7 @@ Paso 1 — Limpiar la onu 1 con el SN incorrecto
 conf t
 interface gpon-olt_1/13/4
   no onu 1
+
 exit
 
 Paso 2 — Dar de alta la ONU real con el SN correcto
@@ -50,3 +51,20 @@ exit
 Paso 5 — Verificar
 
 show gpon onu state gpon-olt_1/13/4
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

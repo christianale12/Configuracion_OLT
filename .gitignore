@@ -8,6 +8,11 @@ venv/
 .venv/
 env/
 
+# Building with PyInstaller
+build/
+dist/
+*.spec
+
 # IDEs
 .vscode/
 .idea/

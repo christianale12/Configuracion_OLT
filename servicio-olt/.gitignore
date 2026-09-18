@@ -1,0 +1,15 @@
+# Entorno / caché
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Build (PyInstaller): se regeneran con el comando del README
+build/
+dist/
+*.spec
+
+# Datos locales que no se suben
+*.log
+*.bat
+.env

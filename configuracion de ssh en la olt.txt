@@ -1,0 +1,15 @@
+
+conf t
+ssh server enable
+ssh server version 2
+ssh server authentication mode local
+ssh server authentication type pap
+
+ssh -oKexAlgorithms=+diffie-hellman-group1-sha1 -oHostKeyAlgorithms=+ssh-dss -oCiphers=+aes128-cbc -oMACs=+hmac-sha1 cidi@10.99.99.2
+
+
+
+
+
+
+

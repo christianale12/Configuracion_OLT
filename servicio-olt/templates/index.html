@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Aprovisionamiento ONU - ZXAN</title>
+<style>
+  :root{
+    --bg:#04070f; --panel:rgba(13,22,40,.72); --panel-b:rgba(56,189,248,.22);
+    --cyan:#22d3ee; --blue:#3b82f6; --green:#22c55e; --amber:#f59e0b; --red:#ef4444;
+    --txt:#e6f3ff; --dim:#8faec6;
+    --mono:"Cascadia Mono","Consolas","Courier New",monospace;
+  }
+  *{box-sizing:border-box}
+  html{background:var(--bg)}
+  body{
+    margin:0 auto; max-width:1040px; padding:16px 18px 26px; min-height:100vh;
+    color:var(--txt); font-family:"Segoe UI",system-ui,Arial,sans-serif;
+    background:
+      radial-gradient(1100px 520px at 12% -8%, rgba(34,211,238,.16), transparent 60%),
+      radial-gradient(900px 480px at 105% 112%, rgba(124,58,237,.16), transparent 60%),
+      linear-gradient(180deg,#04070f,#060c1a 45%,#04070f);
+    background-attachment:fixed;
+  }
+  body::before{
+    content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      linear-gradient(rgba(56,189,248,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56,189,248,.05) 1px, transparent 1px);
+    background-size:44px 44px;
+    -webkit-mask-image:radial-gradient(circle at 50% 22%, #000, transparent 82%);
+    mask-image:radial-gradient(circle at 50% 22%, #000, transparent 82%);
+  }
+  body::after{
+    content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.45;
+    background:repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 3px, rgba(0,0,0,.14) 3px 4px);
+  }
+  body > *{position:relative; z-index:1}
+  h1{
+    display:flex; align-items:center; gap:10px; margin:0 0 4px;
+    font-size:1.1rem; letter-spacing:1.4px; text-transform:uppercase;
+    text-shadow:0 0 22px rgba(34,211,238,.35);
+  }
+  h1::before{
+    content:""; width:10px; height:10px; border-radius:50%; flex:0 0 10px;
+    background:var(--cyan); box-shadow:0 0 12px var(--cyan);
+    animation:pulso 1.6s ease-in-out infinite;
+  }
+  h1 span{color:var(--dim)!important; text-transform:none!important; letter-spacing:0!important}
+  @keyframes pulso{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.72)}}
+  fieldset{
+    position:relative; border:1px solid var(--panel-b); border-radius:12px;
+    padding:11px 15px 13px; margin:0 0 11px; background:var(--panel);
+    backdrop-filter:blur(12px);
+    box-shadow:0 14px 36px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  fieldset::before{
+    content:""; position:absolute; left:18px; right:18px; top:0; height:1px;
+    background:linear-gradient(90deg,transparent,rgba(34,211,238,.7),transparent);
+  }
+  legend{
+    padding:0 8px; color:var(--cyan); font-size:.66rem; font-weight:700;
+    letter-spacing:2px; text-transform:uppercase;
+  }
+  label{display:block; margin-top:6px; font-size:.64rem; letter-spacing:1px; text-transform:uppercase; color:var(--dim)}
+  input,select{
+    width:100%; margin-top:3px; padding:6px 10px; border:1px solid rgba(56,189,248,.25);
+    border-radius:8px; background:rgba(4,10,22,.85); color:var(--txt);
+    font-family:var(--mono); font-size:.8rem; outline:none;
+    transition:border-color .18s, box-shadow .18s, background .18s;
+  }
+  input:focus,select:focus{
+    border-color:var(--cyan); background:rgba(6,16,32,.95);
+    box-shadow:0 0 0 3px rgba(34,211,238,.15), 0 0 20px rgba(34,211,238,.28);
+  }
+  input[type=checkbox]{width:auto; accent-color:var(--cyan); box-shadow:none}
+  select option{background:#08111f; color:var(--txt)}
+  .fila{display:flex; gap:10px; flex-wrap:wrap}
+  .fila>div{flex:1; min-width:135px}
+  button{
+    margin-top:6px; padding:6px 12px; border:1px solid rgba(34,211,238,.45); border-radius:9px;
+    background:linear-gradient(180deg,rgba(34,211,238,.20),rgba(37,99,235,.30)); color:#eaf6ff;
+    font-size:.7rem; font-weight:600; letter-spacing:.5px; text-transform:uppercase; cursor:pointer;
+    box-shadow:0 0 16px rgba(37,99,235,.25), inset 0 1px 0 rgba(255,255,255,.08);
+    transition:transform .12s, box-shadow .2s, filter .2s, border-color .2s;
+  }
+  button:hover{filter:brightness(1.15); border-color:var(--cyan); transform:translateY(-2px);
+    box-shadow:0 0 26px rgba(34,211,238,.5), inset 0 1px 0 rgba(255,255,255,.12)}
+  button:active{transform:translateY(0)}
+  button.secundario{
+    background:linear-gradient(180deg,rgba(30,41,59,.92),rgba(12,20,36,.92));
+    border-color:rgba(148,163,184,.35); color:#c7d8e8;
+  }
+  button[style*="0284c7"]{background:linear-gradient(180deg,rgba(14,165,233,.4),rgba(2,132,199,.4))!important; border-color:rgba(56,189,248,.65)!important}
+  button[style*="b45309"]{background:linear-gradient(180deg,rgba(245,158,11,.34),rgba(180,83,9,.44))!important; border-color:rgba(245,158,11,.65)!important}
+  button[style*="b91c1c"]{background:linear-gradient(180deg,rgba(239,68,68,.34),rgba(153,27,27,.46))!important; border-color:rgba(239,68,68,.65)!important}
+  button[style*="15803d"]{background:linear-gradient(180deg,rgba(34,197,94,.36),rgba(21,128,61,.46))!important; border-color:rgba(34,197,94,.65)!important}
+  h3{
+    display:flex; align-items:center; gap:10px; margin:12px 0 6px;
+    font-size:.7rem; letter-spacing:2px; text-transform:uppercase; color:var(--cyan);
+  }
+  h3::after{content:""; flex:1; height:1px; background:linear-gradient(90deg,rgba(34,211,238,.5),transparent)}
+  pre{
+    position:relative; margin:0; padding:24px 14px 11px; border-radius:10px;
+    background:linear-gradient(180deg,#020813,#04101f); color:#9dffd0;
+    font-family:var(--mono); font-size:.74rem; line-height:1.45;
+    border:1px solid rgba(34,211,238,.28); overflow-x:auto; white-space:pre-wrap;
+    box-shadow:0 0 26px rgba(34,211,238,.1) inset, 0 14px 40px rgba(0,0,0,.5);
+  }
+  pre::before{
+    content:""; position:absolute; left:12px; top:8px; width:8px; height:8px; border-radius:50%;
+    background:#ff5f57; box-shadow:14px 0 #ffbd2e, 28px 0 #28c840;
+  }
+  pre[style*="450a0a"]{color:#ffb4b4!important; background:linear-gradient(180deg,#140206,#1c0407)!important; border-color:rgba(239,68,68,.5)!important}
+  div[style*="f0fdf4"]{
+    background:linear-gradient(90deg,rgba(34,197,94,.16),rgba(34,197,94,.05))!important;
+    border:1px solid rgba(34,197,94,.5)!important; border-left:3px solid var(--green)!important;
+    border-radius:10px!important; color:#c6f6d5!important; box-shadow:0 0 22px rgba(34,197,94,.1);
+  }
+  div[style*="fef2f2"]{
+    background:linear-gradient(90deg,rgba(239,68,68,.16),rgba(239,68,68,.05))!important;
+    border:1px solid rgba(239,68,68,.5)!important; border-left:3px solid var(--red)!important;
+    border-radius:10px!important; color:#fecaca!important; box-shadow:0 0 22px rgba(239,68,68,.1);
+  }
+  .aviso{
+    background:linear-gradient(90deg,rgba(245,158,11,.14),rgba(245,158,11,.04));
+    border:1px solid rgba(245,158,11,.45); border-left:3px solid var(--amber);
+    color:#fbe3b0; padding:7px 12px; border-radius:9px; font-size:.72rem; margin-bottom:11px;
+    box-shadow:0 0 22px rgba(245,158,11,.08);
+  }
+  details.submenu{border:1px solid var(--panel-b);border-radius:12px;background:var(--panel);
+    padding:10px 14px 14px;margin-bottom:11px;backdrop-filter:blur(12px);
+    box-shadow:0 14px 36px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.05)}
+  details.submenu summary{cursor:pointer;color:var(--cyan);font-size:.7rem;letter-spacing:1.5px;
+    text-transform:uppercase;font-weight:600}
+  details.submenu .fila{margin-top:10px}
+  .vacio{color:var(--dim);font-size:.72rem;margin:6px 0 0}
+  ::-webkit-scrollbar{width:10px; height:10px}
+  ::-webkit-scrollbar-track{background:#04070f}
+  ::-webkit-scrollbar-thumb{background:linear-gradient(180deg,var(--cyan),var(--blue)); border-radius:8px}
+  @media(max-width:620px){h1{font-size:1.1rem}}
+</style>
+</head>
+<body>
+<h1>Aprovisionamiento de ONUs - OLT ZTE ZXAN</h1>
+<div class="aviso">Conexión por Telnet (sin cifrar) — usar solo dentro de la red del laboratorio/facultad. La contraseña se usa solo para esta conexión y no se guarda en ningún lado.</div>
+
+<form method="post">
+  <fieldset>
+    <legend>Conexión a la OLT</legend>
+    <div class="fila">
+      <div>
+        <label>IP de gestión</label>
+        <input name="host" value="{{ f.host or '10.99.99.2' }}" required>
+      </div>
+      <div>
+        <label>Usuario</label>
+        <input name="user" value="{{ f.user or 'cidi' }}" required>
+      </div>
+      <div>
+        <label>Contraseña</label>
+        <input type="password" name="password" required>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Datos del cliente</legend>
+    <div class="fila">
+      <div>
+        <label>Puerto (ej: 1/13/4)</label>
+        <input name="puerto" value="{{ f.puerto or '1/13/4' }}" required>
+      </div>
+      <div>
+        <label>Número de ONU</label>
+        <input name="onu_id" value="{{ f.onu_id or '' }}" required>
+      </div>
+      <div>
+        <label>Modelo</label>
+        <select name="modelo">
+          {% for m, d in modelos.items() %}
+          <option value="{{ m }}" {{ 'selected' if f.modelo==m else '' }}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <label>Número de serie (SN, 12 caracteres)</label>
+    <input name="sn" value="{{ f.sn or '' }}" required>
+    <div class="fila">
+      <div>
+        <label>Plan</label>
+        <select name="plan">
+          <option value="100m" {{ 'selected' if f.plan=='100m' else '' }}>100 Mb</option>
+          <option value="300m" {{ 'selected' if f.plan=='300m' else '' }}>300 Mb</option>
+          <option value="600m" {{ 'selected' if f.plan=='600m' else '' }}>600 Mb</option>
+          <option value="1g" {{ 'selected' if f.plan=='1g' else '' }}>1 Gb</option>
+        </select>
+      </div>
+      <div>
+        <label>Modo</label>
+        <select name="modo">
+          <option value="router" {{ 'selected' if f.modo=='router' else '' }}>Router</option>
+          <option value="bridge" {{ 'selected' if f.modo=='bridge' else '' }}>Bridge</option>
+        </select>
+      </div>
+    </div>
+    <label style="display:flex; align-items:center; gap:8px; margin-top:12px;">
+      <input type="checkbox" name="servicios_extra" style="width:auto" {{ 'checked' if f.servicios_extra=='on' else '' }}>
+      Servicios adicionales: IPTV + VoIP (VLAN 300/400) — solo bridge
+    </label>
+  </fieldset>
+
+  <button type="submit" name="accion" value="autocompletar" formnovalidate style="background:#0284c7; margin-bottom: 10px; width: 100%;">
+    🔍 Buscar SN pendiente y asignar ONU-ID libre automáticamente
+  </button>
+  
+  <button type="submit" name="accion" value="uncfg" formnovalidate> Ver ONUs sin configurar en el puerto</button>
+  <button type="submit" name="accion" value="ocupadas" formnovalidate class="secundario">Ver ONU-ID ocupados en el puerto</button>
+  <button type="submit" name="accion" value="provisionar"> Preparar alta (revisar y confirmar)</button>
+  <button type="submit" name="accion" value="estado" formnovalidate class="secundario">Ver estado del puerto</button>
+  <button type="submit" name="accion" value="interfaz_on" formnovalidate class="secundario">Encender interfaz del puerto (no shutdown)</button>
+  <button type="submit" name="accion" value="interfaz_off" formnovalidate class="secundario" style="background:#b45309">Apagar interfaz del puerto (shutdown)</button>
+  <button type="submit" name="accion" value="interfaces" formnovalidate class="secundario">Interfaces GPON (prendidas/apagadas)</button>
+  <button type="submit" name="accion" value="modelos" formnovalidate class="secundario">Actualizar modelos desde OLT</button>
+  <button type="submit" name="accion" value="eliminar" formnovalidate class="secundario" style="background:#b91c1c">
+    Eliminar ONU (borra el ONU-ID que indicás arriba)
+  </button>
+</form>
+
+{% if interfaces_up is not none %}
+<h3>Interfaces GPON</h3>
+<details class="submenu" open>
+  <summary>Prendidas: {{ interfaces_up|length }} &middot; Apagadas: {{ interfaces_down|length }}</summary>
+  <div class="fila">
+    <div>
+      <label>Prendidas — elegí una para APAGAR</label>
+      {% if interfaces_up %}
+      <form method="post">
+        <input type="hidden" name="host" value="{{ f.host or '' }}">
+        <input type="hidden" name="user" value="{{ f.user or '' }}">
+        <input type="hidden" name="password" value="{{ f.password or '' }}">
+        <input type="hidden" name="puerto" value="{{ f.puerto or '' }}">
+        <input type="hidden" name="if_accion" value="apagar">
+        <select name="if_sel">
+          {% for i in interfaces_up %}<option value="{{ i }}">gpon-olt_{{ i }}</option>{% endfor %}
+        </select>
+        <button type="submit" name="accion" value="interfaz_sel" style="background:#b45309">Apagar seleccionada</button>
+      </form>
+      {% else %}<p class="vacio">Ninguna prendida.</p>{% endif %}
+    </div>
+    <div>
+      <label>Apagadas — elegí una para PRENDER</label>
+      {% if interfaces_down %}
+      <form method="post">
+        <input type="hidden" name="host" value="{{ f.host or '' }}">
+        <input type="hidden" name="user" value="{{ f.user or '' }}">
+        <input type="hidden" name="password" value="{{ f.password or '' }}">
+        <input type="hidden" name="puerto" value="{{ f.puerto or '' }}">
+        <input type="hidden" name="if_accion" value="prender">
+        <select name="if_sel">
+          {% for i in interfaces_down %}<option value="{{ i }}">gpon-olt_{{ i }}</option>{% endfor %}
+        </select>
+        <button type="submit" name="accion" value="interfaz_sel">Prender seleccionada</button>
+      </form>
+      {% else %}<p class="vacio">Ninguna apagada.</p>{% endif %}
+    </div>
+  </div>
+</details>
+{% endif %}
+
+{% if comandos_previos %}
+<h3>Comandos{% if confirmado %} enviados{% else %} que se van a enviar (revisar antes de confirmar){% endif %}</h3>
+<pre>{{ comandos_previos }}</pre>
+{% if not confirmado %}
+<form method="post" style="margin-top:10px">
+  <input type="hidden" name="host" value="{{ f.host or '' }}">
+  <input type="hidden" name="user" value="{{ f.user or '' }}">
+  <input type="hidden" name="password" value="{{ f.password or '' }}">
+  <input type="hidden" name="puerto" value="{{ f.puerto or '' }}">
+  <input type="hidden" name="onu_id" value="{{ f.onu_id or '' }}">
+  <input type="hidden" name="modelo" value="{{ f.modelo or '' }}">
+  <input type="hidden" name="sn" value="{{ f.sn or '' }}">
+  <input type="hidden" name="plan" value="{{ f.plan or '' }}">
+  <input type="hidden" name="modo" value="{{ f.modo or '' }}">
+  <input type="hidden" name="servicios_extra" value="{{ 'on' if f.servicios_extra=='on' else '' }}">
+  <input type="hidden" name="if_sel" value="{{ f.if_sel or '' }}">
+  <input type="hidden" name="if_accion" value="{{ f.if_accion or '' }}">
+  <button type="submit" name="accion" value="{{ confirm_accion }}" style="background:#15803d">Sí, confirmar y ejecutar</button>
+  <button type="submit" name="accion" value="volver" class="secundario">Volver / cancelar</button>
+</form>
+{% endif %}
+{% endif %}
+
+{% if verificacion_ok is not none %}
+<h3>Validación de configuración</h3>
+{% if verificacion_ok %}
+<div style="background:#f0fdf4; border:1px solid #86efac; padding:10px 15px; border-radius:6px;">
+  OK: configuración aplicada correctamente. La ONU quedó online y todos los service-ports y VLANs están presentes en el running-config.
+</div>
+{% else %}
+<div style="background:#fef2f2; border:1px solid #fca5a5; padding:10px 15px; border-radius:6px; color:#7f1d1d;">
+  Fallo: problemas detectados tras aplicar la configuración
+  <ul>{% for nota in verificacion_notas %}<li>{{ nota }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+{% endif %}
+
+{% if salida %}
+<h3>Resultado</h3>
+<pre>{{ salida }}</pre>
+{% endif %}
+
+{% if error %}
+<h3 style="color:#b91c1c">Error</h3>
+<pre style="background:#450a0a; color:#fecaca">{{ error }}</pre>
+{% endif %}
+
+</body>
+</html>

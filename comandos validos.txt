@@ -1,0 +1,50 @@
+
+
+Listados / verificación
+
+Comando	Qué hace
+show running-config	Toda la config actual
+show running-config interface gpon-olt_1/13/4	Config de un puerto (ONUs dadas de alta, shutdown/no shutdown)
+show running-config interface gpon-onu_1/13/4:2	Config de la interfaz de una ONU puntual
+show gpon onu state gpon-olt_1/13/4	Estado de las ONUs (working, online, offline, LOS…)
+show gpon onu uncfg gpon-olt_1/13/4	ONUs registradas sin configurar
+Perfiles y modelos (se cargan una vez)
+
+Comando	Qué hace
+gpon → profile tcont plan-XXX type 4 maximum N	Crea perfil de contenedor de tráfico por plan (102400=100M, 307200=300M, 614400=600M, 1024000=1G)
+profile traffic DOWN-XXX sir N pir N	Perfil de tráfico de bajada (mismo caudal garantizado/máximo)
+onu profile vlan HSI-200 tag-mode tag cvlan 200	Perfil de VLAN del WAN (tag 200)
+onu-type ZTEG-F670 gpon description 4GE_1POTS_WIFI	Registra el modelo de ONU con su descripción
+onu-type-if ZTEG-F670 eth_0/1	Declara las interfaces físicas del modelo (eth/pots/wifi)
+
+
+Alta / borrado de ONU en el puerto
+Comando	Qué hace
+configure terminal	Entrar a modo config
+interface gpon-olt_1/13/4	Entrar al puerto GPON
+onu 1 type generic-F670 sn ZTEGC826D7E0	Da de alta la ONU (modelo + SN). Responde [Successful]
+no onu 1	Borra/limpia la ONU 1 (baja mal hecha)
+shutdown / no shutdown (dentro de la interfaz)	Apaga / enciende el puerto GPON
+
+
+Configurar la interfaz de la ONU (lado OLT)
+Comando	Qué hace
+interface gpon-onu_1/13/4:1	Entrar a la interfaz de la ONU
+sn-bind enable sn	Fija el alta por SN (si el SN no coincide, no arranca)
+tcont 1 name internet profile plan-600m	Asigna el contenedor de tráfico del plan
+gemport 1 name internet tcont 1	Crea el GEM port sobre ese contenedor
+gemport 1 traffic-limit downstream DOWN-600M	Limita la bajada al perfil del plan
+switchport mode hybrid vport 1	Puerto híbrido con vport
+service-port 1 vport 1 user-vlan 200 vlan 200	Mapea el service-port a VLAN 200
+Configuración del lado ONU (pon-onu-mng)
+
+
+Comando	Qué hace
+pon-onu-mng gpon-onu_1/13/4:1	Entrar a la gestión de la ONU
+service 1 gemport 1 vlan 200	Servicio sobre el gemport con VLAN 200
+wan-ip 1 mode dhcp vlan-profile HSI-200 host 1	Crea el WAN de la ONU en DHCP
+vlan port eth_0/1 mode tag vlan 200 (…/2, /3, /4)	Pone el/los puertos LAN en modo tag VLAN 200
+
+Backup del MikroTik por consola en texto plano 
+En la consola del router (terminal de Winbox o por SSH):
+/export file=respaldo-texto → genera el backup en texto plano (.rsc, legible y reimportable con /import file=...). Queda en Files para descargar.

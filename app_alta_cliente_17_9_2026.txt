@@ -2,29 +2,6 @@
 """
 App web para aprovisionamiento de ONUs en OLT ZTE ZXAN (GPON)
 ================================================================
-
-Corre un servidor web local con un formulario para:
-  - Ver ONUs conectadas y sin configurar en un puerto (show gpon onu uncfg)
-  - Dar de alta un cliente nuevo (internet, y opcional IPTV/VoIP en modo bridge)
-  - Ver el estado de las ONUs de un puerto (show gpon onu state)
-  - Validar que la configuracion se aplico correctamente (revisa running-config
-    y que la ONU quede online)
-
-Requiere:
-    pip install flask --break-system-packages
-    (usa Telnet nativo de Python, no hace falta paramiko)
-
-Para correrla:
-    python3 app.py
-    (despues abrir http://localhost:5000 en el navegador)
-
-Si la vas a compartir con otros compañeros de la facultad en la misma red,
-correla con host="0.0.0.0" (ya configurado abajo) y que ellos entren a
-http://<IP-de-tu-PC>:5000
-
-IMPORTANTE: Telnet no cifra nada, ni la contraseña ni los comandos.
-Usar solo dentro de una red cerrada y confiable (ej: laboratorio de la
-facultad), nunca sobre internet ni redes compartidas con desconocidos.
 """
 
 import re
@@ -34,14 +11,12 @@ from flask import Flask, request, render_template_string
 
 app = Flask(__name__)
 
-
 # ---------------------------------------------------------------------------
 # Logica de armado de comandos (misma que el script de linea de comandos)
 # ---------------------------------------------------------------------------
 def nombre_traffic_profile(plan):
     sufijo = plan.replace("plan-", "").upper()
     return f"DOWN-{sufijo}"
-
 
 def construir_comandos_alta(puerto, onu_id, modelo, sn, plan, modo, servicios_extra=False):
     interfaz_olt = f"gpon-olt_{puerto}"
@@ -100,16 +75,13 @@ def validar_puerto(puerto):
     if not RE_PUERTO.match(puerto):
         raise ValueError("Puerto invalido (formato esperado: 1/13/4).")
 
-
 def validar_onu_id(onu_id):
-    if not onu_id.isdigit() or not (0 <= int(onu_id) <= 127):
-        raise ValueError("El numero de ONU debe ser un entero entre 0 y 127.")
-
+    if not onu_id.isdigit() or not (1 <= int(onu_id) <= 128):
+        raise ValueError("El numero de ONU debe ser un entero entre 1 y 128.")
 
 def validar_sn(sn):
     if not RE_SN.match(sn):
         raise ValueError("El SN debe tener exactamente 12 caracteres alfanumericos.")
-
 
 def validar_opciones(modelo, plan, modo):
     if modelo not in MODELOS_VALIDOS:
@@ -125,7 +97,6 @@ def validar_opciones(modelo, plan, modo):
 # Conexion por Telnet (socket nativo de Python, sin librerias externas)
 # ---------------------------------------------------------------------------
 IAC, DONT, DO, WONT, WILL = 255, 254, 253, 252, 251
-
 
 def _limpiar_iac(sock, datos):
     limpio = bytearray()
@@ -147,7 +118,6 @@ def _limpiar_iac(sock, datos):
         limpio.append(b)
         i += 1
     return bytes(limpio)
-
 
 def _leer_hasta(sock, marcas, timeout=8):
     sock.settimeout(0.5)
@@ -175,11 +145,9 @@ def _leer_hasta(sock, marcas, timeout=8):
         texto = datos.decode(errors="ignore")
     return texto, coincide
 
-
 def ejecutar_por_telnet(host, usuario, password, comandos, espera=0.3, puerto_telnet=23):
     sock = socket.create_connection((host, puerto_telnet), timeout=15)
     salida = []
-
     try:
         inicial, _ = _leer_hasta(sock, ["Username", "Username:", "Login:", "login:"], timeout=5)
         salida.append(inicial)
@@ -204,10 +172,8 @@ def ejecutar_por_telnet(host, usuario, password, comandos, espera=0.3, puerto_te
                 time.sleep(espera)
             respuesta, _ = _leer_hasta(sock, ["#", ">"], timeout=10)
             salida.append(f"$ {cmd}\n{respuesta}")
-
     finally:
         sock.close()
-
     return "\n".join(salida)
 
 
@@ -348,15 +314,15 @@ PAGINA = """
     </label>
   </fieldset>
 
-  <button type="submit" name="accion" value="autocompletar" style="background:#0284c7; margin-bottom: 10px; width: 100%;">
+  <button type="submit" name="accion" value="autocompletar" formnovalidate style="background:#0284c7; margin-bottom: 10px; width: 100%;">
     🔍 Buscar SN pendiente y asignar ONU-ID libre automáticamente
   </button>
   
-  <button type="submit" name="accion" value="uncfg">1. Ver ONUs sin configurar en el puerto</button>
-  <button type="submit" name="accion" value="ocupadas" class="secundario">Ver ONU-ID ocupados en el puerto</button>
-  <button type="submit" name="accion" value="provisionar">2. Preparar alta (revisar y confirmar)</button>
-  <button type="submit" name="accion" value="estado" class="secundario">Ver estado del puerto</button>
-  <button type="submit" name="accion" value="eliminar" class="secundario" style="background:#b91c1c">
+  <button type="submit" name="accion" value="uncfg" formnovalidate> Ver ONUs sin configurar en el puerto</button>
+  <button type="submit" name="accion" value="ocupadas" formnovalidate class="secundario">Ver ONU-ID ocupados en el puerto</button>
+  <button type="submit" name="accion" value="provisionar"> Preparar alta (revisar y confirmar)</button>
+  <button type="submit" name="accion" value="estado" formnovalidate class="secundario">Ver estado del puerto</button>
+  <button type="submit" name="accion" value="eliminar" formnovalidate class="secundario" style="background:#b91c1c">
     Preparar eliminación de ONU (usa el campo &quot;Número de ONU&quot;)
   </button>
 </form>
@@ -410,7 +376,6 @@ PAGINA = """
 </html>
 """
 
-
 @app.route("/", methods=["GET", "POST"])
 def index():
     f = dict(request.form)
@@ -441,23 +406,28 @@ def index():
                 salida_uncfg = ejecutar_por_telnet(host, user, password, cmds_uncfg)
                 match_sn = re.search(r"\b([A-Za-z0-9]{12})\b", salida_uncfg)
                 
-                # 2. Buscar qué IDs ya están ocupados en ese puerto
-                cmds_run = [f"show running-config interface gpon-olt_{puerto}"]
-                salida_run = ejecutar_por_telnet(host, user, password, cmds_run)
-                ocupados = set(int(m) for m in re.findall(r"onu (\d+) type", salida_run))
-                
-                # 3. Calcular el primer ID disponible empezando desde el 1
-                id_libre = 1
-                while id_libre in ocupados and id_libre <= 128:
-                    id_libre += 1
-                
-                f['onu_id'] = str(id_libre)
-                
-                if match_sn:
-                    f['sn'] = match_sn.group(1)
-                    salida = f"Éxito: Se completó el SN {f['sn']} y se asignó el ID libre {id_libre}."
+                if not match_sn:
+                    # Si no encuentra un SN, lanza el error y limpia los campos
+                    error = "No se detectó ninguna ONU pendiente en este puerto."
+                    f['onu_id'] = ""
+                    f['sn'] = ""
                 else:
-                    error = "No se detectó ninguna ONU pendiente de configuración en este puerto. Se asignó el ID libre por si querés poner el SN a mano."
+                    # Solo si encuentra un SN, busca los IDs ocupados
+                    cmds_run = [f"show running-config interface gpon-olt_{puerto}"]
+                    salida_run = ejecutar_por_telnet(host, user, password, cmds_run)
+                    ocupados = set(int(m) for m in re.findall(r"onu (\d+) type", salida_run))
+                    
+                    # Calcular el primer ID disponible empezando desde el 1
+                    id_libre = 1
+                    while id_libre in ocupados and id_libre <= 128:
+                        id_libre += 1
+                    
+                    if id_libre > 128:
+                        error = "El puerto está lleno. No hay IDs disponibles (límite 128)."
+                    else:
+                        f['onu_id'] = str(id_libre)
+                        f['sn'] = match_sn.group(1)
+                        salida = f"Éxito: Se detectó el SN {f['sn']} y se asignó el ID libre {id_libre}."
 
             elif accion == "uncfg":
                 validar_puerto(puerto)
@@ -531,7 +501,6 @@ def index():
         confirm_accion=confirm_accion, confirmado=confirmado,
         verificacion_ok=verificacion_ok,
         verificacion_notas=verificacion_notas)
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)

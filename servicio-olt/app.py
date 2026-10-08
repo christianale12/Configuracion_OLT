@@ -2,16 +2,7 @@
 """
 App web (Telnet) para aprovisionamiento de ONUs en OLT ZTE ZXAN
 ================================================================
-Interfaz web por Telnet. El codigo esta separado por partes:
-
-  - nucleo.py            -> logica, validaciones y parsers (sin transporte)
-  - transporte_telnet.py -> conexion Telnet a la OLT
-  - vistas.py            -> rutas/controlador web (compartido)
-  - templates/index.html -> interfaz grafica (HTML + Jinja)
-
-Para correrla:
-    python app.py
-    abrir http://localhost:5000
+Interfaz web por Telnet con soporte de sesión activa.
 """
 
 import os
@@ -27,14 +18,31 @@ if getattr(sys, "frozen", False):
 else:
     _BASE = os.path.dirname(os.path.abspath(__file__))
 
-app = Flask(__name__, template_folder=os.path.join(_BASE, "templates"))
+# Prioridad a los templates editables (junto al exe / carpeta de desarrollo).
+# Si existe "templates" al lado del ejecutable (o en la carpeta del proyecto),
+# la app los lee de ahi para que los cambios se vean sin recompilar.
+_EXTERNO = os.path.join(os.path.dirname(__file__), "templates")
+if not os.path.isdir(_EXTERNO) and getattr(sys, "frozen", False):
+    _junto_exe = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "templates")
+    _arriba = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(sys.executable))), "templates")
+    for _c in (_junto_exe, _arriba):
+        if os.path.isdir(_c):
+            _EXTERNO = _c
+            break
+_TEMPL = _EXTERNO if os.path.isdir(_EXTERNO) else os.path.join(_BASE, "templates")
 
-# Version Telnet: permite actualizar la lista de modelos desde la OLT y
-# acepta cualquier modelo seguro (validacion por regex, no por lista fija).
+app = Flask(__name__, template_folder=_TEMPL)
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+
+# Clave secreta necesaria para que Flask mantenga las sesiones de usuario en cookies
+app.secret_key = "zxan_olt_telnet_session_key_secret"
+
+# Habilitamos conectar=True para activar los botones de Iniciar y Cerrar sesión
 vistas.registrar(
     app,
     ejecutar_por_telnet,
     "index.html",
+    conectar=True,
     modelos=True,
     modelos_validos=None,
 )

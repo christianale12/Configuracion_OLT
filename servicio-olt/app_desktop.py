@@ -69,9 +69,10 @@ def main():
     webview.create_window(
         TITULO,
         f"http://{host}:{puerto}",
-        width=1000,
-        height=850,
-        min_size=(800, 600),
+        width=740,
+        height=580,
+        min_size=(560, 460),
+        background_color="#060913",
     )
     webview.start()
 

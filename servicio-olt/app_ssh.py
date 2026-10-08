@@ -38,7 +38,26 @@ if getattr(sys, "frozen", False):
 else:
     _BASE = os.path.dirname(os.path.abspath(__file__))
 
-app = Flask(__name__, template_folder=os.path.join(_BASE, "templates"))
+# Prioridad a los templates editables (junto al exe / carpeta de desarrollo).
+# Si existe "templates" al lado del ejecutable (o en la carpeta del proyecto),
+# la app los lee de ahi para que los cambios se vean sin recompilar.
+_EXTERNO = os.path.join(os.path.dirname(__file__), "templates")
+if not os.path.isdir(_EXTERNO) and getattr(sys, "frozen", False):
+    _junto_exe = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "templates")
+    _arriba = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(sys.executable))), "templates")
+    for _c in (_junto_exe, _arriba):
+        if os.path.isdir(_c):
+            _EXTERNO = _c
+            break
+_TEMPL = _EXTERNO if os.path.isdir(_EXTERNO) else os.path.join(_BASE, "templates")
+
+app = Flask(__name__, template_folder=_TEMPL)
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+
+# =================================================================
+# AGREGAR ESTA LÍNEA PARA QUE NO TE PIDA LA CONTRASEÑA EN CADA BOTÓN
+app.secret_key = "clave_secreta_super_segura_gpon"
+# =================================================================
 
 # Version SSH: incluye la accion "conectar" (show version). Al igual que la
 # version Telnet, actualiza la lista de modelos desde la OLT y acepta
